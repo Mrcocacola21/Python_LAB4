@@ -1,23 +1,21 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ------------------------
-# 1. Імпорт бібліотек і налаштування
-# ------------------------
+# =========================
+# 1. Налаштування
+# =========================
 
-plt.rcParams["font.family"] = "DejaVu Sans"  # щоб кирилиця нормально відображалась на графіках
+# Щоб кирилиця відображалась правильно на графіках
+plt.rcParams["font.family"] = "DejaVu Sans"
 
-# ------------------------
-# 2. Завантаження початкових даних
-# ------------------------
+
+# =========================
+# 2. Завантаження даних
+# =========================
 
 df = pd.read_csv("WorldPopulation2023.csv", encoding="utf-8-sig")
 
-# ------------------------
-# 3. Уніфікація назв стовпців
-#    (щоб далі було зручно звертатись до стовпців по стабільних іменах)
-# ------------------------
-
+# Приведення назв стовпців до стабільного формату
 rename_map = {
     "Population2023": "Population_2023",
     "Population (2023)": "Population_2023",
@@ -34,23 +32,20 @@ rename_map = {
 }
 df = df.rename(columns=rename_map)
 
-# ------------------------
-# 4. Первинний огляд сирих даних
-# ------------------------
+print("=== Перші рядки сирих даних ===")
+print(df.head(), "\n")
 
-print("=== Перші рядки датафрейму (сирі дані) ===")
-print(df.head())
+print("=== Інформація про сирі дані ===")
+print(df.info(), "\n")
 
-print("\n=== Інформація про датафрейм (сирі дані) ===")
-print(df.info())
 
-# ------------------------
-# 5. Очищення даних (працюємо на копії df_clean)
-# ------------------------
+# =========================
+# 3. Очищення даних
+# =========================
 
 df_clean = df.copy()
 
-# 5.1) Прибрати зайві пробіли у текстових полях, замінити 'N.A.' на NaN
+# 3.1 Прибираємо зайві пробіли, "N.A." -> NaN
 for col in df_clean.select_dtypes(include="object").columns:
     df_clean[col] = (
         df_clean[col]
@@ -59,7 +54,7 @@ for col in df_clean.select_dtypes(include="object").columns:
         .replace({"nan": pd.NA, "N.A.": pd.NA, "N.A": pd.NA})
     )
 
-# 5.2) Колонки з відсотками типу "12.3 %" → перетворити в числа (12.3)
+# 3.2 Конвертуємо відсотки типу "12.3 %" -> 12.3
 for pc in ["UrbanPop_pct", "WorldShare_pct", "YearlyChange"]:
     if pc in df_clean.columns:
         df_clean[pc] = (
@@ -72,8 +67,8 @@ for pc in ["UrbanPop_pct", "WorldShare_pct", "YearlyChange"]:
         )
         df_clean[pc] = pd.to_numeric(df_clean[pc], errors="coerce")
 
-# 5.3) Перетворити числові стовпці до числового типу
-for c in [
+# 3.3 Конвертуємо числові стовпці в числа (float / int)
+numeric_candidates = [
     "Population_2023",
     "Density_per_km2",
     "Land_Area_km2",
@@ -82,35 +77,37 @@ for c in [
     "Median_Age",
     "NetChange",
     "Rank",
-]:
-    if c in df_clean.columns:
-        df_clean[c] = pd.to_numeric(df_clean[c], errors="coerce")
+]
+for col in numeric_candidates:
+    if col in df_clean.columns:
+        df_clean[col] = pd.to_numeric(df_clean[col], errors="coerce")
 
-# 5.4) Видалити рядки, де критично важливі значення відсутні
-need_cols = [c for c in ["Country", "Population_2023", "Land_Area_km2"] if c in df_clean.columns]
-df_clean = df_clean.dropna(subset=need_cols)
+# 3.4 Видаляємо рядки без ключових даних
+required_cols = [c for c in ["Country", "Population_2023", "Land_Area_km2"] if c in df_clean.columns]
+df_clean = df_clean.dropna(subset=required_cols)
 
-# ------------------------
-# 6. Оновлена структура після очищення
-# ------------------------
+print("=== Інфо після очищення ===")
+print(df_clean.info(), "\n")
 
-print("\n=== Інфо після очищення / типи даних ===")
-print(df_clean.info())
 
-# 6.1) Описова статистика числових колонок
+# =========================
+# 4. Описова статистика
+# =========================
+
 numeric_cols = df_clean.select_dtypes(include=["number"])
-print("\n=== Описова статистика (числові колонки) ===")
-print(numeric_cols.describe().T)
-
-# 6.2) Описова статистика текстових колонок
 object_cols = df_clean.select_dtypes(include=["object"])
-print("\n=== Описова статистика (текстові колонки) ===")
-print(object_cols.describe().T)
 
-# ------------------------
-# 7. Додати регіон / континент (оскільки в датасеті немає Region)
-#    Тут ми будуємо мапу країна -> континент і створюємо стовпець Region
-# ------------------------
+print("=== Статистика числових колонок ===")
+print(numeric_cols.describe().T, "\n")
+
+print("=== Статистика текстових колонок ===")
+print(object_cols.describe().T, "\n")
+
+
+# =========================
+# 5. Додавання регіону / континенту
+# (у вихідному датасеті немає Region, тому додаємо вручну)
+# =========================
 
 continent_map = {
     "Afghanistan": "Asia",
@@ -160,7 +157,7 @@ continent_map = {
     "China": "Asia",
     "Colombia": "South America",
     "Comoros": "Africa",
-    "Congo": "Africa",  # Republic of the Congo
+    "Congo": "Africa",
     "Cook Islands": "Oceania",
     "Costa Rica": "North America",
     "Côte d'Ivoire": "Africa",
@@ -169,7 +166,7 @@ continent_map = {
     "Curaçao": "North America",
     "Cyprus": "Asia",
     "Czech Republic (Czechia)": "Europe",
-    "DR Congo": "Africa",  # Democratic Republic of the Congo
+    "DR Congo": "Africa",
     "Denmark": "Europe",
     "Djibouti": "Africa",
     "Dominica": "North America",
@@ -356,12 +353,14 @@ continent_map = {
 
 df_clean["Region"] = df_clean["Country"].map(continent_map)
 
-print("\n=== Перевірка доданої колонки Region ===")
-print(df_clean[["Country", "Region", "Median_Age"]].head())
+print("=== Перевірка доданої колонки Region ===")
+print(df_clean[["Country", "Region", "Median_Age"]].head(), "\n")
 
-# ------------------------
-# 8. СЕРЕДНЄ НАСЕЛЕННЯ ЗА РЕГІОНАМИ
-# ------------------------
+
+# =========================
+# 6. Середнє населення за регіонами
+# (середнє значення населення країни в межах регіону)
+# =========================
 
 avg_pop_by_region = (
     df_clean.dropna(subset=["Region"])
@@ -369,31 +368,39 @@ avg_pop_by_region = (
     .mean()
     .sort_values(ascending=False)
 )
-print("\n=== Середнє населення за регіонами (Population_2023, середнє значення) ===")
-print(avg_pop_by_region)
 
-# ------------------------
-# 9. ТОП-10 КРАЇН З НАЙБІЛЬШОЮ ЩІЛЬНІСТЮ НАСЕЛЕННЯ
-# ------------------------
+# Для звіту краще показати в млн осіб, округлено
+avg_pop_mln = (avg_pop_by_region / 1e6).round(2).reset_index()
+avg_pop_mln.columns = ["Region", "AvgPopulationPerCountry_Mln"]
+
+print("=== Середнє населення країни в межах регіону (млн осіб) ===")
+print(avg_pop_mln, "\n")
+
+
+# =========================
+# 7. Топ-10 країн за щільністю населення
+# =========================
 
 top_density = (
     df_clean.sort_values("Density_per_km2", ascending=False)
     .loc[:, ["Country", "Density_per_km2"]]
     .head(10)
 )
-print("\n=== ТОП-10 за щільністю населення (осіб на км²) ===")
-print(top_density)
 
-# ------------------------
-# 10. ГРАФІК: ТОП-10 КРАЇН ЗА НАСЕЛЕННЯМ
-# ------------------------
+print("=== ТОП-10 за щільністю населення (осіб на км²) ===")
+print(top_density, "\n")
+
+
+# =========================
+# 8. Графік: ТОП-10 країн за населенням
+# =========================
 
 top10_pop = (
     df_clean.sort_values("Population_2023", ascending=False)
     .head(10)
     .copy()
 )
-top10_pop["Population_mln"] = top10_pop["Population_2023"] / 1e6
+top10_pop["Population_mln"] = (top10_pop["Population_2023"] / 1e6).round(2)
 
 top10_pop.plot(
     kind="bar",
@@ -408,48 +415,53 @@ plt.xticks(rotation=45, ha="right")
 plt.tight_layout()
 plt.show()
 
-# ------------------------
-# 11. САМОСТІЙНЕ ЗАВДАННЯ (1): 5 КРАЇН З НАЙМЕНШОЮ ПЛОЩЕЮ
-# ------------------------
+
+# =========================
+# 9. Самостійне 8.1: 5 країн з найменшою площею
+# =========================
 
 smallest_area = df_clean.nsmallest(5, "Land_Area_km2")[["Country", "Land_Area_km2"]]
-print("\n=== 5 країн з найменшою площею (км²) ===")
-print(smallest_area)
+print("=== 5 країн з найменшою площею (км²) ===")
+print(smallest_area, "\n")
 
-# ------------------------
-# 12. САМОСТІЙНЕ ЗАВДАННЯ (2): 'ТРИВАЛІСТЬ ЖИТТЯ' ЗА РЕГІОНАМИ
-#     У наборі немає Life Expectancy, тому використовуємо Median_Age як наближення.
-# ------------------------
+
+# =========================
+# 10. Самостійне 8.2: "тривалість життя" за регіонами
+# У нас немає Life Expectancy, тому використовуємо Median_Age як проксі
+# =========================
 
 avg_age_by_region = (
     df_clean.dropna(subset=["Region"])
     .groupby("Region")["Median_Age"]
     .mean()
     .sort_values(ascending=False)
-)
-print("\n=== Середній медіанний вік населення (Median_Age) за регіонами ===")
-print(avg_age_by_region)
+).round(2)
 
-# ------------------------
-# 13. САМОСТІЙНЕ ЗАВДАННЯ (3): НОВИЙ СТОВПЕЦЬ Population_per_km2_calc
-#     (співвідношення населення до площі)
-# ------------------------
+print("=== Середній медіанний вік населення за регіонами (років) ===")
+print(avg_age_by_region, "\n")
+
+
+# =========================
+# 11. Самостійне 8.3: новий стовпець Population_per_km2_calc
+# =========================
 
 df_clean["Population_per_km2_calc"] = (
     df_clean["Population_2023"] / df_clean["Land_Area_km2"]
 )
 
-print("\n=== Перевірка нової колонки Population_per_km2_calc (перші 5 рядків) ===")
+print("=== Новий стовпець Population_per_km2_calc (перших 5 рядків) ===")
 print(
     df_clean[
         ["Country", "Population_2023", "Land_Area_km2", "Population_per_km2_calc"]
-    ].head()
+    ].head(),
+    "\n"
 )
 
-# ------------------------
-# 14. САМОСТІЙНЕ ЗАВДАННЯ (4): ГРАФІК 'ТРИВАЛІСТЬ ЖИТТЯ ПО КОНТИНЕНТАХ'
-#     Малюємо середній Median_Age по Region
-# ------------------------
+
+# =========================
+# 12. Самостійне 8.4: графік "тривалість життя по континентах"
+# По суті: середній Median_Age по Region
+# =========================
 
 age_plot = (
     df_clean.dropna(subset=["Region"])
@@ -472,9 +484,10 @@ plt.xticks(rotation=0)
 plt.tight_layout()
 plt.show()
 
-# ------------------------
-# 15. САМОСТІЙНЕ ЗАВДАННЯ (5): ЗБЕРЕЖЕННЯ ОЧИЩЕНИХ ДАНИХ
-# ------------------------
+
+# =========================
+# 13. Самостійне 8.5: збереження очищених даних
+# =========================
 
 df_clean.to_csv("cleaned_population.csv", index=False, encoding="utf-8-sig")
-print("\nОчищені дані збережено у файлі: cleaned_population.csv")
+print("Очищені дані збережено у файлі: cleaned_population.csv")
